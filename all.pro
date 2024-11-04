@@ -18,19 +18,16 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
-    pointslist.cpp \
     qcustomplot.cpp \
     settingsdialog.cpp
 
 HEADERS += \
     mainwindow.h \
-    pointslist.h \
     qcustomplot.h \
     settingsdialog.h
 
 FORMS += \
     mainwindow.ui \
-    pointslist.ui \
     settingsdialog.ui
 
 # Default rules for deployment.

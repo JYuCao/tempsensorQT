@@ -110,11 +110,6 @@ void MainWindow::on_btnConfig_clicked()
     settingsDialog.exec();
 }
 
-void MainWindow::on_btnPoints_clicked()
-{
-    pointsList.show();
-}
-
 double MainWindow::getData(QByteArray * data)
 {
     // qDebug()<< "位数：" << data.size();

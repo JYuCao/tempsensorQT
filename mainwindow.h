@@ -29,12 +29,9 @@ private slots:
 
     void slot_SameTimeMousePressEvent4Plot(QMouseEvent *e);
 
-    void on_btnPoints_clicked();
-
 private:
     Ui::MainWindow      *ui;
     SettingsDialog      settingsDialog;
-    PointsList          pointsList;
     QSerialPort * m_serial;
     double data;
     int time = 0;
@@ -57,7 +54,6 @@ private:
 
     void clearMarkers();
 
-signals:
     void appendPoint(QCPGraph * graph, double x, double y);
     void removePoint(int i);
 };
