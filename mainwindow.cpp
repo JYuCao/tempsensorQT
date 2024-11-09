@@ -46,6 +46,90 @@ void MainWindow::closeSerialPort()
 {
     if (m_serial->isOpen())
         m_serial->close();
+
+    // outputPlotData();
+    calculateSteadyStateAndRiseTime();
+}
+
+void MainWindow::calculateSteadyStateAndRiseTime()
+{
+    // 获取图形对象
+    QCPGraph *graph = ui->m_plot->graph(0);
+    if (graph)
+    {
+        // 获取数据点
+        const QCPDataMap *dataMap = graph->data();
+        if (dataMap->isEmpty())
+            return;
+
+        // 计算开始和结束时的平均值作为稳态值
+        double startSum = 0;
+        double endSum = 0;
+        int startCount = 0;
+        int endCount = 0;
+        int totalCount = dataMap->size();
+        int startRange = totalCount * 0.1; // 前10%的数据点
+        int endRange = totalCount * 0.1;   // 后10%的数据点
+
+        int index = 0;
+        for (auto it = dataMap->constBegin(); it != dataMap->constEnd(); ++it, ++index)
+        {
+            if (index < startRange)
+            {
+                startSum += it.value().value;
+                startCount++;
+            }
+            if (index >= totalCount - endRange)
+            {
+                endSum += it.value().value;
+                endCount++;
+            }
+        }
+
+        double startSteadyState = startSum / startCount;
+        double endSteadyState = endSum / endCount;
+
+        // 计算上升时间
+        double riseTime = 0;
+        bool rising = false;
+        for (auto it = dataMap->constBegin(); it != dataMap->constEnd(); ++it)
+        {
+            if (!rising && it.value().value > startSteadyState)
+            {
+                rising = true;
+                riseTime = it.key();
+            }
+            if (rising && it.value().value >= endSteadyState)
+            {
+                riseTime = it.key() - riseTime;
+                break;
+            }
+        }
+        ui->lineEdit_risetime->setText(QString::number(riseTime, 'f', 1));
+        ui->lineEdit_beforerise->setText(QString::number(startSteadyState, 'f', 2));
+        ui->lineEdit_afterrise->setText(QString::number(endSteadyState, 'f', 2));
+
+        qDebug() << "Start Steady State:" << startSteadyState;
+        qDebug() << "End Steady State:" << endSteadyState;
+        qDebug() << "Rise Time:" << riseTime;
+    }
+}
+
+void MainWindow::outputPlotData()
+{
+    // 获取图形对象
+    QCPGraph *graph = ui->m_plot->graph(0);
+    if (graph)
+    {
+        // 获取数据点
+        const QCPDataMap *dataMap = graph->data();
+        for (auto it = dataMap->constBegin(); it != dataMap->constEnd(); ++it)
+        {
+            double x = it.key();
+            double y = it.value().value;
+            qDebug() << "x:" << x << ", y:" << y;
+        }
+    }
 }
 
 void MainWindow::startPlot()
@@ -53,6 +137,8 @@ void MainWindow::startPlot()
     ui->m_plot->xAxis->setRange(0, TIME_BASE);
     ui->m_plot->yAxis->setRange(20, 40);
     ui->m_plot->addGraph();
+    ui->m_plot->graph(0)->setAntialiased(true); // 启用抗锯齿
+    ui->m_plot->graph(0)->setAdaptiveSampling(true); // 启用自适应采样
 }
 
 void MainWindow::clearPlot()
@@ -90,14 +176,14 @@ void MainWindow::readData()
 
     ui->m_plot->replot();
 
-    QThread::msleep(100);
+    QThread::msleep(10);
     QApplication::processEvents();
 
     if (time > TIME_BASE)
     {
         ui->m_plot->xAxis->setRange(0, time);
     }
-    time += 1;
+    time += 0.1;
 }
 
 MainWindow::~MainWindow()
@@ -158,7 +244,7 @@ void MainWindow::slot_SameTimeMousePressEvent4Plot(QMouseEvent *e)
     for (int i = 0; i < tracers.size(); ++i) {
         double tracerX = tracers[i]->position->key();
         double tracerY = tracers[i]->position->value();
-        
+
         // 判断标记点是否在给定范围内
         if (qAbs(tracerX - x) < range && qAbs(tracerY - y) < range) {
             removePoint(i);
@@ -205,4 +291,9 @@ void MainWindow::removePoint(int i)
     tracers.removeAt(i);
     textTips.removeAt(i);
     ui->m_plot->replot();
+}
+
+void MainWindow::on_btnPause_clicked()
+{
+    closeSerialPort();
 }

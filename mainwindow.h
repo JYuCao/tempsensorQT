@@ -3,7 +3,6 @@
 
 #include <QMainWindow>
 #include "settingsdialog.h"
-#include "pointslist.h"
 #include "qcustomplot.h"
 #include <QSerialPort>
 
@@ -29,12 +28,14 @@ private slots:
 
     void slot_SameTimeMousePressEvent4Plot(QMouseEvent *e);
 
+    void on_btnPause_clicked();
+
 private:
     Ui::MainWindow      *ui;
     SettingsDialog      settingsDialog;
     QSerialPort * m_serial;
     double data;
-    int time = 0;
+    double time = 0;
     QVector<QPointF> previousPoints;
     QList<QCPItemTracer*> tracers;
     QList<QCPItemText*> textTips;
@@ -47,7 +48,6 @@ private:
     void initPlot();
     void startPlot();
     void clearPlot();
-    void clearPoints();
 
     void readData();
     double getData(QByteArray *);
@@ -56,5 +56,9 @@ private:
 
     void appendPoint(QCPGraph * graph, double x, double y);
     void removePoint(int i);
+    void clearPoints();
+
+    void outputPlotData();
+    void calculateSteadyStateAndRiseTime();
 };
 #endif // MAINWINDOW_H

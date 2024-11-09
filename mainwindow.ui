@@ -35,14 +35,14 @@
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
-      <widget class="QPushButton" name="btn_calc">
+      <widget class="QPushButton" name="btnPause">
        <property name="font">
         <font>
          <pointsize>20</pointsize>
         </font>
        </property>
        <property name="text">
-        <string>CALC</string>
+        <string>Pause</string>
        </property>
       </widget>
      </item>
