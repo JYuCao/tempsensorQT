@@ -5,17 +5,16 @@
 #include <QDebug>
 #include <stdlib.h>
 
+/**
+ * @brief 构造函数，初始化主窗口和UI组件。
+ * @param parent 父窗口指针。
+ */
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
 
-    initConnect();
-    initPlot();
-}
-
-void MainWindow::initConnect()
-{
+    /* connect初始化 */
     connect(ui->actionOpen_Serial, &QAction::triggered, this, &MainWindow::openSerialPort);
     connect(ui->actionClose_Serial, &QAction::triggered, this, &MainWindow::closeSerialPort);
     connect(ui->actionConfig, &QAction::triggered, this, &MainWindow::on_btnConfig_clicked);
@@ -24,8 +23,17 @@ void MainWindow::initConnect()
     connect(m_serial, &QSerialPort::readyRead, this, &MainWindow::readData);
 
     connect(ui->m_plot, SIGNAL(mousePress(QMouseEvent *)), this, SLOT(slot_SameTimeMousePressEvent4Plot(QMouseEvent *)));
+
+    /* plot初始化 */
+    ui->m_plot->xAxis->setRange(0, TIME_BASE);
+    ui->m_plot->yAxis->setRange(Y_MIN, Y_MAX);
+    max = Y_MIN;
+    min = Y_MAX;
 }
 
+/**
+ * @brief 打开串口并开始绘图。
+ */
 void MainWindow::openSerialPort()
 {
     const SettingsDialog::Settings p = settingsDialog.settings();
@@ -42,6 +50,9 @@ void MainWindow::openSerialPort()
     startPlot();
 }
 
+/**
+ * @brief 关闭串口并计算稳态值和上升时间。
+ */
 void MainWindow::closeSerialPort()
 {
     if (m_serial->isOpen())
@@ -51,6 +62,9 @@ void MainWindow::closeSerialPort()
     calculateSteadyStateAndRiseTime();
 }
 
+/**
+ * @brief 计算稳态值和上升时间。
+ */
 void MainWindow::calculateSteadyStateAndRiseTime()
 {
     // 获取图形对象
@@ -94,14 +108,16 @@ void MainWindow::calculateSteadyStateAndRiseTime()
         bool rising = false;
         for (auto it = dataMap->constBegin(); it != dataMap->constEnd(); ++it)
         {
-            if (!rising && it.value().value > startSteadyState)
+            if (!rising && it.value().value > startSteadyState+0.3)
             {
                 rising = true;
                 riseTime = it.key();
+                qDebug() << "Start Time:" << it.key();
             }
             if (rising && it.value().value >= endSteadyState)
             {
                 riseTime = it.key() - riseTime;
+                qDebug() << "End Time:" << it.key();
                 break;
             }
         }
@@ -109,12 +125,15 @@ void MainWindow::calculateSteadyStateAndRiseTime()
         ui->lineEdit_beforerise->setText(QString::number(startSteadyState, 'f', 2));
         ui->lineEdit_afterrise->setText(QString::number(endSteadyState, 'f', 2));
 
-        qDebug() << "Start Steady State:" << startSteadyState;
-        qDebug() << "End Steady State:" << endSteadyState;
-        qDebug() << "Rise Time:" << riseTime;
+        // qDebug() << "Start Steady State:" << startSteadyState;
+        // qDebug() << "End Steady State:" << endSteadyState;
+        // qDebug() << "Rise Time:" << riseTime;
     }
 }
 
+/**
+ * @brief 输出绘图数据到调试控制台。
+ */
 void MainWindow::outputPlotData()
 {
     // 获取图形对象
@@ -132,35 +151,38 @@ void MainWindow::outputPlotData()
     }
 }
 
+/**
+ * @brief 开始绘图。
+ */
 void MainWindow::startPlot()
 {
     ui->m_plot->xAxis->setRange(0, TIME_BASE);
-    ui->m_plot->yAxis->setRange(20, 40);
+    ui->m_plot->yAxis->setRange(Y_MIN, Y_MAX);
     ui->m_plot->addGraph();
     ui->m_plot->graph(0)->setAntialiased(true); // 启用抗锯齿
     ui->m_plot->graph(0)->setAdaptiveSampling(true); // 启用自适应采样
 }
 
+/**
+ * @brief 清除绘图。
+ */
 void MainWindow::clearPlot()
 {
     ui->m_plot->removeGraph(0);
     time = 0;
+    clearPoints();
 }
 
-void MainWindow::initPlot()
-{
-    ui->m_plot->xAxis->setRange(0, TIME_BASE);
-    ui->m_plot->yAxis->setRange(20, 40);
-}
-
+/**
+ * @brief 读取串口数据并更新绘图。
+ */
 void MainWindow::readData()
 {
     QByteArray d = m_serial->readAll();
 
     data = getData(&d);
 
-    static double max = data;
-    static double min = data;
+    // qDebug() << "max: " << max << " min: " << min<< endl;
 
     if (data > max) {
         max = data;
@@ -186,16 +208,27 @@ void MainWindow::readData()
     time += 0.1;
 }
 
+/**
+ * @brief 析构函数，释放UI资源。
+ */
 MainWindow::~MainWindow()
 {
     delete ui;
 }
 
+/**
+ * @brief 配置按钮点击事件处理函数。
+ */
 void MainWindow::on_btnConfig_clicked()
 {
     settingsDialog.exec();
 }
 
+/**
+ * @brief 从QByteArray中获取数据。
+ * @param data 数据字节数组指针。
+ * @return 转换后的数据值。
+ */
 double MainWindow::getData(QByteArray * data)
 {
     // qDebug()<< "位数：" << data.size();
@@ -208,6 +241,9 @@ double MainWindow::getData(QByteArray * data)
     return atof(buf);
 }
 
+/**
+ * @brief 重新绘图按钮点击事件处理函数。
+ */
 void MainWindow::on_btnReplot_clicked()
 {
     closeSerialPort();
@@ -215,9 +251,13 @@ void MainWindow::on_btnReplot_clicked()
     openSerialPort();
     startPlot();
 
-    clearPoints();
+    max = Y_MIN;
+    min = Y_MAX;
 }
 
+/**
+ * @brief 清除所有标记点。
+ */
 void MainWindow::clearPoints()
 {
     for (int i = 0; i < tracers.size(); ++i) {
@@ -228,6 +268,10 @@ void MainWindow::clearPoints()
     textTips.clear();
 }
 
+/**
+ * @brief 绘图区域鼠标点击事件处理槽函数。
+ * @param e 鼠标事件指针。
+ */
 void MainWindow::slot_SameTimeMousePressEvent4Plot(QMouseEvent *e)
 {
     // 获取点击位置的图形
@@ -254,10 +298,18 @@ void MainWindow::slot_SameTimeMousePressEvent4Plot(QMouseEvent *e)
 
     // 创建新的标记点和文本标签
     appendPoint(graph, x, y);
-
-    ui->m_plot->replot();
 }
 
+/**
+ * @brief 增加点并在指定坐标处添加标记和文本标签。
+ *
+ * 该函数在给定的QCPGraph上指定的(x, y)坐标处创建一个标记点和一个文本标签。
+ * 标记点表示为一个带有白色边框和红色填充的圆。文本标签显示点的坐标，并位于标记点上方。
+ *
+ * @param graph 要添加点的QCPGraph。
+ * @param x 点的x坐标。
+ * @param y 点的y坐标。
+ */
 void MainWindow::appendPoint(QCPGraph * graph, double x, double y)
 {
     QCPItemTracer *m_timeTracer = new QCPItemTracer(ui->m_plot);
@@ -282,17 +334,25 @@ void MainWindow::appendPoint(QCPGraph * graph, double x, double y)
 
     textTips.append(m_timeTextTip);
     tracers.append(m_timeTracer);
+    ui->m_plot->replot();
 }
 
+/**
+ * @brief 移除指定索引的标记点和文本标签。
+ * @param i 要移除的标记点和文本标签的索引。
+ */
 void MainWindow::removePoint(int i)
 {
-    tracers[i]->deleteLater();
-    textTips[i]->deleteLater();
+    delete tracers[i];
+    delete textTips[i];
     tracers.removeAt(i);
     textTips.removeAt(i);
     ui->m_plot->replot();
 }
 
+/**
+ * @brief 暂停按钮点击事件处理函数。
+ */
 void MainWindow::on_btnPause_clicked()
 {
     closeSerialPort();
